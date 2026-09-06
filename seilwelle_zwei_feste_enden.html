@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seilwelle: festes und loses Ende</title>
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--text:#20252b;--muted:#68717b;--border:#d7dce1;--accent:#2457a6}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.wrap{max-width:1200px;margin:auto;padding:22px}
+h1{margin:0 0 4px;font-size:25px}
+.subtitle{color:var(--muted);margin-bottom:18px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+canvas{display:block;width:100%;height:auto;border-radius:8px}
+.controls h2{font-size:16px;margin:0 0 12px}
+.control{margin:14px 0}
+.control label{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:6px}
+input[type=range],select{width:100%}
+select{padding:8px;border:1px solid #bcc3ca;border-radius:7px;background:#fff}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}
+button{min-height:42px;padding:8px 14px;border:1px solid #b9c0c7;border-radius:8px;background:#fff;font-weight:650;cursor:pointer}
+button.primary{background:#20252b;color:#fff;border-color:#20252b}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #a9c3ed;outline-offset:2px}
+.formula{background:#f1f3f5;border-radius:8px;padding:10px;font-size:13px;line-height:1.6;margin-top:14px}
+.note{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:12px}
+.legend{display:flex;gap:15px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin-top:9px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.controls{position:static}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h1>Seilwelle: zwei feste Enden</h1>
+<div class="subtitle">Hinlaufende Welle + reflektierte Welle → resultierende stehende Welle</div>
+
+<div class="layout">
+<section class="panel">
+<canvas id="wave" width="900" height="790" aria-label="Drei Diagramme für hinlaufende, rücklaufende und resultierende Welle"></canvas>
+<div class="legend">
+<span>— Wellenverlauf</span>
+<span>● Knoten</span>
+<span>○ Bauch</span>
+<span>⋯ Ruhelage</span>
+</div>
+</section>
+
+<aside class="panel controls">
+<h2>Simulation</h2>
+<div class="buttons">
+<button id="play" class="primary" type="button">Play</button>
+<button id="pause" type="button">Pause</button>
+<button id="reset" type="button">Reset</button>
+</div>
+
+<div class="control">
+<label for="mode"><span>Schwingung</span></label>
+<select id="mode">
+<option value="1">Grundschwingung</option>
+<option value="2">1. Oberschwingung</option>
+<option value="3">2. Oberschwingung</option>
+<option value="4">3. Oberschwingung</option>
+<option value="5">4. Oberschwingung</option>
+<option value="6">5. Oberschwingung</option>
+</select>
+</div>
+
+<div class="control">
+<label for="length"><span>Seillänge L</span><output id="lengthOut">4,0 m</output></label>
+<input id="length" type="range" min="2" max="8" step="0.1" value="4">
+</div>
+
+<div class="control">
+<label for="amplitude"><span>Amplitude A</span><output id="ampOut">1,0</output></label>
+<input id="amplitude" type="range" min="0.2" max="1.5" step="0.1" value="1">
+</div>
+
+<div class="control">
+<label for="frequency"><span>Frequenz f</span><output id="freqOut">1,0 Hz</output></label>
+<input id="frequency" type="range" min="0.2" max="3" step="0.1" value="1">
+</div>
+
+<div class="control">
+<label for="speed"><span>Animationsgeschwindigkeit</span><output id="speedOut">1,0×</output></label>
+<input id="speed" type="range" min="0.1" max="3" step="0.1" value="1">
+</div>
+
+<div class="formula" id="formula"></div>
+<div class="note">
+Randbedingung: links fest → Knoten; rechts fest → Knoten. Die Simulation wählt die Wellenlänge so, dass beide festen Enden exakt Knoten sind.
+</div>
+</aside>
+</div>
+</main>
+
+<script>
+(() => {
+"use strict";
+
+const root = document.querySelector(".wrap");
+const canvas = root.querySelector("#wave");
+const ctx = canvas.getContext("2d");
+
+const modeEl = root.querySelector("#mode");
+const lengthEl = root.querySelector("#length");
+const ampEl = root.querySelector("#amplitude");
+const freqEl = root.querySelector("#frequency");
+const speedEl = root.querySelector("#speed");
+
+const lengthOut = root.querySelector("#lengthOut");
+const ampOut = root.querySelector("#ampOut");
+const freqOut = root.querySelector("#freqOut");
+const speedOut = root.querySelector("#speedOut");
+const formula = root.querySelector("#formula");
+
+let time = 0;
+let running = false;
+let last = performance.now();
+
+function fmt(x, digits=1){
+  return x.toFixed(digits).replace(".", ",");
+}
+
+function getParams(){
+  const n = Math.max(1, Math.min(6, Number(modeEl.value) || 1));
+  const L = Math.max(2, Number(lengthEl.value) || 4);
+  const A = Math.max(0.2, Number(ampEl.value) || 1);
+  const f = Math.max(0.2, Number(freqEl.value) || 1);
+
+  // Fixed-fixed eigenmodes:
+  // L = n * lambda / 2
+  const lambda = 2 * L / n;
+  const k = 2 * Math.PI / lambda;
+  const omega = 2 * Math.PI * f;
+
+  return {n,L,A,f,lambda,k,omega};
+}
+
+function update(){
+  const p = getParams();
+  lengthOut.value = fmt(p.L) + " m";
+  ampOut.value = fmt(p.A);
+  freqOut.value = fmt(p.f) + " Hz";
+  speedOut.value = fmt(Number(speedEl.value)) + "×";
+
+  const v = p.f * p.lambda;
+  formula.innerHTML =
+    "<strong>Fest–lose</strong><br>" +
+    "L = n · λ/2<br>" +
+    "λ = " + fmt(p.lambda,2) + " m<br>" +
+    "v = fλ = " + fmt(v,2) + " m/s<br><br>" +
+    "n = " + p.n + " → " +
+    (p.n === 1 ? "Grundschwingung" : (p.n-1) + ". Oberschwingung");
+}
+
+[modeEl,lengthEl,ampEl,freqEl,speedEl].forEach(el => el.addEventListener("input", () => {
+  update();
+  draw();
+}));
+
+root.querySelector("#play").addEventListener("click", () => {
+  running = true;
+});
+root.querySelector("#pause").addEventListener("click", () => {
+  running = false;
+});
+root.querySelector("#reset").addEventListener("click", () => {
+  running = false;
+  time = 0;
+  draw();
+});
+
+function graph(top, title, waveFn, p, opts={}){
+  const left = 72, right = 875, height = 210;
+  const center = top + 108;
+  const ampPx = 62 * p.A;
+  const width = right-left;
+
+  ctx.strokeStyle = "#d7dce1";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(left, top, width, height);
+
+  ctx.setLineDash([3,5]);
+  ctx.strokeStyle = "#c7cdd3";
+  ctx.beginPath();
+  ctx.moveTo(left, center);
+  ctx.lineTo(right, center);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "#20252b";
+  ctx.font = "600 15px system-ui";
+  ctx.fillText(title, left, top+23);
+
+  // Physical boundaries
+  ctx.strokeStyle = "#20252b";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(left, top+40); ctx.lineTo(left, top+height-18);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#20252b";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(right, top+40); ctx.lineTo(right, top+height-18);
+  ctx.stroke();
+
+  ctx.fillStyle = "#20252b";
+  ctx.font = "11px system-ui";
+  ctx.fillText("fest", left-13, top+37);
+  ctx.fillText("fest", right-16, top+37);
+
+  // x axis labels
+  ctx.fillStyle = "#68717b";
+  ctx.font = "12px system-ui";
+  for(let i=0;i<=4;i++){
+    const x = left + width*i/4;
+    const xm = p.L*i/4;
+    ctx.fillText(fmt(xm,1)+" m", x-13, top+height-7);
+  }
+
+  // Wave
+  ctx.strokeStyle = "#20252b";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  const N = 800;
+  for(let i=0;i<=N;i++){
+    const x = left + width*i/N;
+    const xm = p.L*i/N;
+    const y = center - ampPx*waveFn(xm);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  if(opts.timeMarker !== false){
+    const markerX = left + width*(0.5 + 0.42*Math.sin(time*0.45));
+    ctx.strokeStyle = "#9ca4ac";
+    ctx.setLineDash([5,5]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(markerX, top);
+    ctx.lineTo(markerX, top+height);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function resultGraph(top,p,resultFn){
+  const left = 72, right = 875, height = 210;
+  const center = top+108, width = right-left, ampPx=62*p.A;
+
+  ctx.strokeStyle="#d7dce1"; ctx.lineWidth=1;
+  ctx.strokeRect(left,top,width,height);
+
+  ctx.setLineDash([3,5]);
+  ctx.strokeStyle="#c7cdd3";
+  ctx.beginPath();ctx.moveTo(left,center);ctx.lineTo(right,center);ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle="#20252b";ctx.font="600 15px system-ui";
+  ctx.fillText("3. Resultierende Welle (stehende Welle)",left,top+23);
+
+  // End markers: left node, right antinode.
+  ctx.strokeStyle="#20252b";ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(left,top+40);ctx.lineTo(left,top+height-18);ctx.stroke();
+  ctx.strokeStyle="#20252b";ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(right,top+40);ctx.lineTo(right,top+height-18);ctx.stroke();
+
+  ctx.fillStyle="#20252b";ctx.font="11px system-ui";
+  ctx.fillText("fest",left-13,top+37);
+  ctx.fillText("fest",right-16,top+37);
+
+  // Standing wave
+  ctx.strokeStyle="#20252b";ctx.lineWidth=2.8;ctx.beginPath();
+  const N=800;
+  for(let i=0;i<=N;i++){
+    const x=left+width*i/N;
+    const xm=p.L*i/N;
+    const y=center-ampPx*resultFn(xm);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // Exact nodes and antinodes for fixed-fixed boundary conditions.
+  // Nodes: x = j*lambda/2, including both ends.
+  ctx.fillStyle="#20252b";
+  for(let j=0;j<=p.n;j++){
+    const xm=j*p.lambda/2;
+    if(xm <= p.L+1e-9){
+      const x=left+width*xm/p.L;
+      ctx.beginPath();ctx.arc(x,center,4,0,2*Math.PI);ctx.fill();
+    }
+  }
+  // Antinodes lie halfway between neighboring nodes.
+  ctx.fillStyle="#fff";ctx.strokeStyle="#20252b";ctx.lineWidth=1.5;
+  for(let j=0;j<p.n;j++){
+    const xm=p.lambda/4+j*p.lambda/2;
+    if(xm < p.L-1e-9){
+      const x=left+width*xm/p.L;
+      ctx.beginPath();ctx.arc(x,center,5,0,2*Math.PI);ctx.fill();ctx.stroke();
+    }
+  }
+
+  ctx.fillStyle="#68717b";ctx.font="12px system-ui";
+  for(let i=0;i<=4;i++){
+    const x=left+width*i/4;
+    const xm=p.L*i/4;
+    ctx.fillText(fmt(xm,1)+" m",x-13,top+height-7);
+  }
+
+  const markerX=left+width*(0.5+0.42*Math.sin(time*0.45));
+  ctx.strokeStyle="#9ca4ac";ctx.setLineDash([5,5]);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(markerX,top);ctx.lineTo(markerX,top+height);ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function draw(){
+  const p=getParams();
+
+  // Fixed-fixed superposition:
+  // y_i = A sin(kx - wt)
+  // y_r = A sin(kx + wt)
+  // Resultat: y = 2A sin(kx) cos(wt), standing wave with nodes at both fixed ends
+  // with nodes at x=0 and x=L because kL=n*pi.
+  const incident = x => p.A ? Math.sin(p.k*x - p.omega*time) : 0;
+  const reflected = x => p.A ? Math.sin(p.k*x + p.omega*time) : 0;
+  const resultant = x => incident(x) + reflected(x);
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  graph(15,"1. Hinlaufende Welle",incident,p);
+  graph(275,"2. Rücklaufende Welle",reflected,p);
+  resultGraph(535,p,resultant);
+}
+
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000);
+  last=now;
+  if(running) time += dt*Number(speedEl.value);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+update();
+draw();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
