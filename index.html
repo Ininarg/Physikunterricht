@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Physik-Simulationen</title>
+<style>
+:root{
+  --bg:#f4f7fb;
+  --card:#ffffff;
+  --text:#172033;
+  --muted:#687386;
+  --line:#e4e9f1;
+  --accent:#2563eb;
+  --accent2:#0f766e;
+  --shadow:0 14px 40px rgba(23,32,51,.09);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  color:var(--text);
+  background:linear-gradient(145deg,#eef4ff 0%,var(--bg) 45%,#eefbf8 100%);
+  min-height:100vh;
+}
+.container{max-width:1050px;margin:auto;padding:42px 22px 60px}
+.hero{
+  background:rgba(255,255,255,.88);
+  border:1px solid rgba(255,255,255,.9);
+  border-radius:28px;
+  padding:42px;
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(12px);
+}
+.eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-size:.82rem;
+  font-weight:750;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin-bottom:12px;
+}
+.eyebrow::before{
+  content:"";
+  width:9px;height:9px;border-radius:50%;
+  background:var(--accent);
+}
+h1{font-size:clamp(2rem,5vw,3.5rem);line-height:1.05;margin:0 0 14px;letter-spacing:-.04em}
+.hero p{max-width:700px;color:var(--muted);font-size:1.05rem;margin:0}
+.section-title{margin:38px 4px 16px;font-size:1.25rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.card{
+  display:block;
+  color:inherit;
+  text-decoration:none;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:24px;
+  box-shadow:0 8px 24px rgba(23,32,51,.05);
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.card:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(23,32,51,.11);border-color:#cbd5e1}
+.icon{
+  width:48px;height:48px;border-radius:14px;
+  display:grid;place-items:center;
+  font-size:1.45rem;font-weight:800;
+  background:#eaf1ff;color:var(--accent);
+  margin-bottom:18px;
+}
+.card:nth-child(2) .icon{background:#e6f7f3;color:var(--accent2)}
+.card h3{margin:0 0 8px;font-size:1.15rem}
+.card p{margin:0;color:var(--muted);font-size:.95rem;line-height:1.55}
+.badge{
+  display:inline-block;margin-top:18px;
+  padding:6px 10px;border-radius:999px;
+  background:#f1f5f9;color:#475569;font-size:.78rem;font-weight:700;
+}
+.footer{margin-top:28px;color:#8a94a6;text-align:center;font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="hero">
+    <div class="eyebrow">Physik · Simulationen</div>
+    <h1>Wellen sichtbar machen.</h1>
+    <p>Interaktive Simulationen für den Unterricht. Untersuche Hinlauf, Rücklauf und Überlagerung von Wellen und verändere die Parameter direkt im Browser.</p>
+  </header>
+
+  <h2 class="section-title">Wellen</h2>
+  <section class="grid">
+    <a class="card" href="seilwelle-zwei-feste-enden.html">
+      <div class="icon">↔</div>
+      <h3>Seilwelle · zwei feste Enden</h3>
+      <p>Stehende Wellen mit Knoten an beiden Enden. Grundschwingung und Oberschwingungen können untersucht werden.</p>
+      <span class="badge">Zwei feste Enden</span>
+    </a>
+
+    <a class="card" href="seilwelle-fest-lose-neu.html">
+      <div class="icon">∿</div>
+      <h3>Seilwelle · festes und loses Ende</h3>
+      <p>Reflexion an einem festen linken und einem losen rechten Ende. Die Randbedingungen erzeugen Viertelwellenmoden.</p>
+      <span class="badge">Fest · Lose</span>
+    </a>
+  </section>
+
+  <div class="footer">Physik-Simulationen · für den Unterricht</div>
+</div>
+</body>
+</html>
